@@ -69,7 +69,24 @@ def main() -> None:
         sweep.append(dict(n_per_level=n, **{k: st[k] for k in ("N_rate", "g_rate", "s_rate")}))
     res["sample_size_sweep_N4_g0.4"] = sweep
 
-    # 5. By-level summaries for the dissociated responders (one dataset each).
+    # 5. Lapse sensitivity: the fit has no lapse parameter.
+    lapse_res = {}
+    for lapse in (0.0, 0.001, 0.01):
+        Ns = {}
+        for N in (1, 2, 3, 4):
+            for g in (0.05, 0.2, 0.4):
+                r = ThresholdResponder("x", N=N, g=g, s=FAST, lapse=lapse)
+                Ns[f"{N}"] = Ns.get(f"{N}", []) + [
+                    fit_threshold(build_trials(items, simulate(r, items, 1000 + k))).N
+                    for k in range(20)]
+        allN = np.concatenate([np.array(v) for v in Ns.values()])
+        lapse_res[str(lapse)] = dict(
+            N_hat_share={str(n): float(np.mean(allN == n)) for n in range(6)},
+            correct_by_true_N={n: float(np.mean(np.array(v) == int(n))) for n, v in Ns.items()},
+            share_0_or_1=float(np.mean(allN <= 1)), n_fits=int(len(allN)))
+    res["lapse_sensitivity"] = lapse_res
+
+    # 6. By-level summaries for the dissociated responders (one dataset each).
     res["by_level"] = {
         name: {str(k): v for k, v in summarize_by_level(
             build_trials(items, simulate(r, items, 900 + i))).items()}
@@ -113,6 +130,12 @@ def render_markdown(res: dict) -> str:
           "| items per level | N̂ = N | ĝ ok | ŝ ok |", "|---|---|---|---|"]
     for s in res["sample_size_sweep_N4_g0.4"]:
         L.append(f"| {s['n_per_level']} | {s['N_rate']:.2f} | {s['g_rate']:.2f} | {s['s_rate']:.2f} |")
+    L += ["\n## Lapse sensitivity (fit has no lapse parameter; 12 grid cells x 20 datasets)\n",
+          "| lapse | N̂ = 0 or 1 | N̂ = N (true N = 1 / 2 / 3 / 4) |", "|---|---|---|"]
+    for lapse, d in res["lapse_sensitivity"].items():
+        cb = d["correct_by_true_N"]
+        L.append(f"| {lapse} | {d['share_0_or_1']:.2f} | "
+                 + " / ".join(f"{cb[n]:.2f}" for n in ("1", "2", "3", "4")) + " |")
     L += ["\n## By level (one dataset per dissociated responder)\n",
           "| responder | level | d′ | c | accuracy | exact | mean RT (s) |",
           "|---|---|---|---|---|---|---|"]

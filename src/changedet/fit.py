@@ -88,6 +88,8 @@ def fit_threshold(table: TrialTable) -> ThresholdFit:
 
 def fit_speed(table: TrialTable) -> SpeedFit:
     x, y = table.item_load, table.item_rt
+    if np.ptp(x) == 0:
+        raise ValueError("speed is not identifiable: all items have the same load")
     X = np.column_stack([np.ones_like(x), x])
     beta, *_ = np.linalg.lstsq(X, y, rcond=None)
     resid = y - X @ beta

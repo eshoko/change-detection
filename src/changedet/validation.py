@@ -58,6 +58,7 @@ class Recovery:
     s_hat: float
     se_s: float
     t0_hat: float
+    sigma_hat: float
     n_censored: bool
 
     @property
@@ -86,7 +87,7 @@ def recover(responder: ThresholdResponder, items: list[Item], seed: int) -> Reco
     table = build_trials(items, simulate(responder, items, seed))
     tf, sf = fit_threshold(table), fit_speed(table)
     return Recovery(responder.name, responder.N, responder.g, responder.s,
-                    tf.N, tf.g, tf.se_g, sf.s, sf.se_s, sf.t0, tf.n_censored)
+                    tf.N, tf.g, tf.se_g, sf.s, sf.se_s, sf.t0, sf.resid_sd, tf.n_censored)
 
 
 def recovery_study(responder: ThresholdResponder, items: list[Item], n_reps: int,
@@ -105,11 +106,15 @@ def recovery_study(responder: ThresholdResponder, items: list[Item], n_reps: int
     )
 
 
-def parametric_bootstrap(items: list[Item], rec: Recovery, n_boot: int, seed: int,
-                         t0: float = 1.0, sigma: float = 0.3) -> dict[str, object]:
-    """Simulate from the fitted parameters and refit. Returns percentile CIs."""
+def parametric_bootstrap(items: list[Item], rec: Recovery, n_boot: int,
+                         seed: int) -> dict[str, object]:
+    """Simulate from all fitted parameters (N, g, s, t0, residual SD) and refit.
+
+    Returns percentile 95% CIs. Nothing is taken from the true responder, so the
+    bootstrap works on any fitted dataset.
+    """
     fitted = ThresholdResponder("boot", N=rec.N_hat, g=rec.g_hat, s=max(rec.s_hat, 0.0),
-                                t0=t0, sigma=sigma)
+                                t0=rec.t0_hat, sigma=rec.sigma_hat)
     seeds = np.random.SeedSequence(seed).generate_state(n_boot)
     reps = [recover(fitted, items, int(s)) for s in seeds]
     Ns = np.array([r.N_hat for r in reps])

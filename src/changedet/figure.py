@@ -87,7 +87,7 @@ def plot(curves: dict, path: str, n_reps: int) -> None:
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=4, frameon=False, fontsize=8.5,
                bbox_to_anchor=(0.5, 0.0))
-    fig.suptitle("Capacity drives d′, speed drives RT (simulated responders, g = 0.2)",
+    fig.suptitle("Capacity drives d′, speed drives RT (simulated responders at fixed bias, g = 0.2)",
                  x=0.01, ha="left", fontsize=12, color=TEXT)
     fig.text(0.01, 0.875, f"Points: mean over {n_reps} replicate datasets; bars: ±1 SD. "
              "Equal-capacity d′ curves and equal-speed RT curves coincide by construction;\n"

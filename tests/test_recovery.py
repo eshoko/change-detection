@@ -8,7 +8,7 @@ import pytest
 from changedet.fit import fit_speed, fit_threshold
 from changedet.responders import ThresholdResponder, simulate
 from changedet.scoring import build_trials, summarize
-from changedet.validation import (DISSOCIATED, FAST, N_RATE_MIN, SLOW, recover,
+from changedet.validation import (DISSOCIATED, FAST, N_RATE_MIN, SLOW, parametric_bootstrap, recover,
                                   recovery_study, responder_grid)
 
 SEED = 11
@@ -106,3 +106,59 @@ def test_N_not_identifiable_beyond_max_n_changed(items):
     r = ThresholdResponder("x", N=4, g=0.2, s=FAST)
     f = fit_threshold(build_trials(small, simulate(r, small, SEED)))
     assert f.N == 2 and f.n_censored
+
+
+def test_bootstrap_uses_fitted_rt_parameters(items):
+    """With sigma = 1.0 (not the default 0.3), bootstrap and OLS 95% CIs for s must agree.
+
+    A bootstrap that simulated with a fixed sigma of 0.3 would give an
+    interval about 3x too narrow. t0 = 3 keeps RTs well above the floor, so
+    OLS is exact.
+    """
+    r = ThresholdResponder("noisy", N=2, g=0.2, s=SLOW, t0=3.0, sigma=1.0)
+    rec = recover(r, items, SEED)
+    assert rec.sigma_hat == pytest.approx(1.0, abs=0.05)
+    assert rec.t0_hat == pytest.approx(3.0, abs=0.15)
+    boot = parametric_bootstrap(items, rec, n_boot=150, seed=21)
+    lo, hi = boot["s_ci"]
+    ols_half = 1.96 * rec.se_s
+    assert (hi - lo) / (2 * ols_half) == pytest.approx(1.0, abs=0.2)
+    assert abs((lo + hi) / 2 - rec.s_hat) < 0.25 * ols_half
+
+
+@pytest.mark.parametrize("N", [1, 3])
+def test_zero_guess_rate(items, N):
+    """g = 0: no false alarms, g_hat = 0 exactly, finite likelihood, N recovered."""
+    r = ThresholdResponder("g0", N=N, g=0.0, s=FAST)
+    t = build_trials(items, simulate(r, items, SEED))
+    assert not (t.reported & ~t.changed).any()
+    f = fit_threshold(t)
+    assert f.N == N and f.g == 0.0 and f.se_g == 0.0
+    assert np.isfinite(f.loglik)
+    s = summarize(t)
+    assert np.isfinite(s["dprime"]) and np.isfinite(s["c"]) and s["fa_rate_raw"] == 0.0
+    rec = recover(r, items, SEED)
+    assert rec.ok
+    boot = parametric_bootstrap(items[::4], rec, n_boot=5, seed=1)  # all levels: load varies
+    assert boot["g_ci"] == (0.0, 0.0)
+
+
+def test_lapses_break_N_recovery(items):
+    """Documented limitation: a 0.1% lapse rate already drives N_hat down to 0-1."""
+    r = ThresholdResponder("lapsy", N=3, g=0.2, s=FAST, lapse=0.001)
+    Ns = [fit_threshold(build_trials(items, simulate(r, items, 40 + k))).N for k in range(10)]
+    assert np.mean(np.array(Ns) <= 1) >= 0.5, Ns
+    assert np.mean(np.array(Ns) == 3) <= 0.5, Ns
+
+
+def test_lapse_zero_is_default_stream(items):
+    a = simulate(ThresholdResponder("a", N=2, g=0.2, s=FAST), items[:200], 3)
+    b = simulate(ThresholdResponder("a", N=2, g=0.2, s=FAST, lapse=0.0), items[:200], 3)
+    assert a == b
+
+
+def test_speed_fit_rejects_constant_load(items):
+    one_level = [it for it in items if it.level == 1]
+    r = ThresholdResponder("x", N=1, g=0.2, s=FAST)
+    with pytest.raises(ValueError, match="not identifiable"):
+        fit_speed(build_trials(one_level, simulate(r, one_level, 0)))

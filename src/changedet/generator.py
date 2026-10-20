@@ -15,6 +15,11 @@ Conventions
   difference in the multiset of that attribute's values between the two panels.
   So the ground truth can be recovered from the text even though object order
   is shuffled and no object IDs are shown.
+* No two objects in a panel share all described values, so no panel contains
+  two identical descriptions (up to synonyms). The initial objects are drawn
+  distinct, and a change may not make an object identical to another one.
+  If the random choices reach a state with no valid change, the item is redrawn
+  (deterministically, from the same generator).
 """
 
 from __future__ import annotations
@@ -65,6 +70,10 @@ class Knobs:
             raise ValueError(f"n_distractors must be in 0..{len(DISTRACTORS)}")
         if self.n_panels < 2:
             raise ValueError("n_panels must be >= 2")
+        if self.n_attrs + self.n_distractors == 1 and self.n_objects > 2:
+            # One described attribute with as few as 3 values: distinct objects
+            # leave room to change only if n_objects <= 2.
+            raise ValueError("with a single described attribute, n_objects must be <= 2")
 
 
 # Difficulty presets. Within a level, n_changed is drawn uniformly from
@@ -131,9 +140,47 @@ def _random_value(rng: np.random.Generator, attr: str):
     return vals[int(rng.integers(len(vals)))]
 
 
-def _new_value(rng: np.random.Generator, attr: str, old):
-    others = [v for v in VALUES[attr] if v != old]
-    return others[int(rng.integers(len(others)))]
+def _valid_new_values(panel: list[dict], j: int, attr: str) -> list:
+    """Values of attr that object j can take without duplicating another object."""
+    taken = {o[attr] for i, o in enumerate(panel)
+             if i != j and all(o[a] == panel[j][a] for a in o if a != attr)}
+    return [v for v in VALUES[attr] if v != panel[j][attr] and v not in taken]
+
+
+def _draw_objects(rng: np.random.Generator, described, n: int) -> list[dict]:
+    objs: list[dict] = []
+    while len(objs) < n:
+        cand = {a: _random_value(rng, a) for a in described}
+        if cand not in objs:
+            objs.append(cand)
+    return objs
+
+
+_MAX_REDRAWS = 100
+
+
+def _draw_panels(rng, knobs: Knobs, described, changing) -> list[list[dict]] | None:
+    first = _draw_objects(rng, described, knobs.n_objects)
+    n_trans = knobs.n_panels - 1
+    # Decide, for each changing attribute, the transitions at which it changes.
+    schedule: dict[int, list[str]] = {t: [] for t in range(n_trans)}
+    for attr in changing:
+        k = int(rng.integers(1, n_trans + 1))
+        for t in rng.choice(n_trans, size=k, replace=False):
+            schedule[int(t)].append(attr)
+    panels = [first]
+    for t in range(n_trans):
+        nxt = copy.deepcopy(panels[-1])
+        for attr in schedule[t]:
+            options = {j: _valid_new_values(nxt, j, attr) for j in range(knobs.n_objects)}
+            movable = [j for j, vals in options.items() if vals]
+            if not movable:
+                return None
+            j = movable[int(rng.integers(len(movable)))]
+            vals = options[j]
+            nxt[j][attr] = vals[int(rng.integers(len(vals)))]
+        panels.append(nxt)
+    return panels
 
 
 def generate_item(knobs: Knobs, rng: np.random.Generator, item_id: str = "",
@@ -144,22 +191,12 @@ def generate_item(knobs: Knobs, rng: np.random.Generator, item_id: str = "",
     changed = _pick(rng, list(queried), knobs.n_changed)
     described = queried + distractors
 
-    first = [{a: _random_value(rng, a) for a in described} for _ in range(knobs.n_objects)]
-    n_trans = knobs.n_panels - 1
-    # Decide, for each changing attribute, the transitions at which it changes.
-    schedule: dict[int, list[str]] = {t: [] for t in range(n_trans)}
-    for attr in list(changed) + list(distractors):
-        k = int(rng.integers(1, n_trans + 1))
-        for t in rng.choice(n_trans, size=k, replace=False):
-            schedule[int(t)].append(attr)
-
-    panels = [first]
-    for t in range(n_trans):
-        nxt = copy.deepcopy(panels[-1])
-        for attr in schedule[t]:
-            j = int(rng.integers(knobs.n_objects))
-            nxt[j][attr] = _new_value(rng, attr, nxt[j][attr])
-        panels.append(nxt)
+    for _ in range(_MAX_REDRAWS):
+        panels = _draw_panels(rng, knobs, described, list(changed) + list(distractors))
+        if panels is not None:
+            break
+    else:
+        raise RuntimeError(f"could not draw distinct objects for {knobs}")
 
     truth = compute_ground_truth(panels, queried)
     assert truth == {a: a in changed for a in queried}  # internal consistency

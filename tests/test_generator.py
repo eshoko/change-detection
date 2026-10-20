@@ -53,6 +53,25 @@ def test_one_object_changes_per_attribute_per_transition(items):
                 assert sum(p[j][a] != q[j][a] for j in range(len(p))) <= 1
 
 
+def test_no_identical_objects_within_a_panel(items):
+    for it in items:
+        for panel in it.panels:
+            keys = [tuple(sorted(o.items())) for o in panel]
+            assert len(set(keys)) == len(keys), it.item_id
+
+
+@pytest.mark.parametrize("n_objects", range(1, 7))
+@pytest.mark.parametrize("n_attrs,n_distractors", [(1, 1), (2, 0), (3, 2), (5, 0)])
+def test_distinct_objects_across_knobs(n_objects, n_attrs, n_distractors):
+    for n_changed in range(n_attrs + 1):
+        knobs = Knobs(n_objects, n_attrs, n_changed, 3, n_distractors)
+        for seed in range(15):
+            it = generate_item(knobs, np.random.default_rng(seed))
+            assert it.n_changed == n_changed
+            for panel in it.panels:
+                assert len({tuple(sorted(o.items())) for o in panel}) == n_objects
+
+
 def test_text_encodes_ground_truth(items):
     """Decode value multisets from the text alone; a change shows as a multiset difference."""
     for it in items:
@@ -105,6 +124,7 @@ def test_distractors_never_change_ground_truth(seed):
     dict(n_objects=2, n_attrs=2, n_changed=0, surface_noise=4, n_distractors=0),
     dict(n_objects=2, n_attrs=2, n_changed=0, surface_noise=0, n_distractors=3),
     dict(n_objects=2, n_attrs=2, n_changed=0, surface_noise=0, n_distractors=0, n_panels=1),
+    dict(n_objects=3, n_attrs=1, n_changed=0, surface_noise=0, n_distractors=0),
 ])
 def test_invalid_knobs_rejected(bad):
     with pytest.raises(ValueError):

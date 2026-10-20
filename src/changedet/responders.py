@@ -7,6 +7,9 @@ Each responder follows a high-threshold rule with a speed component:
 * guess rate ``g`` (bias toward reporting change): every queried attribute
   that was not detected (changed or not) is reported as changed with
   probability ``g``;
+* optional ``lapse`` (default 0): each detected change is lost with this
+  probability and falls back to guessing. The (N, g) fit has no lapse
+  parameter; this option exists to show how fragile the fit is without one.
 * speed ``s`` (seconds per comparison): ``RT = t0 + s * load + noise``, where
   ``load = n_objects * n_attrs * (n_panels - 1)`` and noise ~ N(0, sigma).
   RT is floored at ``rt_floor``.
@@ -51,6 +54,7 @@ class ThresholdResponder:
     t0: float = 1.0
     sigma: float = 0.3
     rt_floor: float = 0.05
+    lapse: float = 0.0
 
     def __post_init__(self):
         if self.N < 0:
@@ -59,11 +63,15 @@ class ThresholdResponder:
             raise ValueError("g must be in [0, 1]")
         if self.s < 0:
             raise ValueError("s must be >= 0")
+        if not 0.0 <= self.lapse <= 1.0:
+            raise ValueError("lapse must be in [0, 1]")
 
     def decide(self, item: Item, rng: np.random.Generator) -> set[str]:
         changed = [a for a in item.queried if item.ground_truth[a]]
         n_det = min(self.N, len(changed))
         detected = {changed[int(i)] for i in rng.choice(len(changed), size=n_det, replace=False)}
+        if self.lapse > 0:  # draws only when lapses are on, so lapse=0 streams are unchanged
+            detected = {a for a in sorted(detected) if rng.random() >= self.lapse}
         reported = set(detected)
         for a in item.queried:
             if a not in detected and rng.random() < self.g:
