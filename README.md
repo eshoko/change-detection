@@ -15,8 +15,8 @@ API calls (simulated responders only).
 
 ```bash
 pip install -r requirements.txt          # pinned versions, Python 3.13
-pytest -q                                # 86 tests, ~20 s
-PYTHONPATH=src python scripts/run_validation.py   # ~3 min, writes results/validation.{json,md}
+pytest -q                                # 118 tests, ~30 s
+PYTHONPATH=src python scripts/run_validation.py   # ~5 min, writes results/validation.{json,md}
 PYTHONPATH=src python scripts/make_figure.py      # writes results/figure_dprime_rt.png
 ```
 
@@ -52,7 +52,7 @@ equivalent wording do not count as changes.
 
 | knob | range | effect |
 |---|---|---|
-| `n_objects` | 1–6 | object groups per panel |
+| `n_objects` | 1–6 | object groups per panel (at most 2 if only one attribute is described) |
 | `n_attrs` | 1–5 | queried attributes per object |
 | `n_changed` | 0–`n_attrs` | how many queried attributes change |
 | `surface_noise` | 0–3 | irrelevant wording variation (see below) |
@@ -98,6 +98,7 @@ Each simulated responder has three independent parameters:
 | `N` (capacity) | detects a random subset of `min(N, n_changed)` changing attributes |
 | `g` (bias) | each undetected attribute (changed or not) is reported with probability `g` |
 | `s` (speed) | RT = `t0 + s · load + ε`, with `load = n_objects × n_attrs × (n_panels − 1)` and ε ~ N(0, σ); defaults `t0 = 1 s`, `σ = 0.3 s` |
+| `lapse` (optional, default 0) | each detected change is lost with this probability and falls back to guessing; used only to show the fit's fragility |
 
 Responders write free text ending in a `CHANGED:` line, sometimes using
 aliases such as "colour". So the parser runs on every simulated response.
@@ -110,9 +111,13 @@ aliases such as "colour". So the parser runs on every simulated response.
   false-alarm trials only. For each N, the maximum-likelihood ĝ has a
   closed form (reported guess trials / all guess trials). N is chosen by grid
   search over `0..max(k)`, and ties go to the smallest N.
-* **Speed:** an OLS regression of RT on load gives the slope ŝ and intercept t̂0,
-  with classical standard errors.
-* A parametric bootstrap (`validation.parametric_bootstrap`) gives 95% CIs.
+* **Speed:** an OLS regression of RT on load gives the slope ŝ, the intercept t̂0
+  and the residual SD σ̂, with classical standard errors. If every item has the
+  same load, speed cannot be identified, and the fit raises an error.
+* A parametric bootstrap (`validation.parametric_bootstrap`) gives 95% CIs. It
+  simulates from **all fitted** parameters (N̂, ĝ, ŝ, t̂0, σ̂) and uses nothing
+  from the true responder. A test with σ = 1.0 checks that the bootstrap and
+  OLS intervals for s agree.
 
 ## Conventions
 
@@ -123,6 +128,11 @@ aliases such as "colour". So the parser runs on every simulated response.
   multiset of that attribute's values, and the ground truth can be recovered
   from the text alone, even with shuffled order and no object IDs. A test
   decodes every panel from its text and checks this.
+* **No identical objects in a panel:** no two objects in a panel share all
+  described values, so a panel never repeats the same description (up to
+  synonyms). Initial objects are drawn distinct, and a change may not make an
+  object identical to another one. If no valid change exists, the item is
+  redrawn deterministically from the same generator.
 * **Unit of judgment:** one judgment per queried attribute type per item,
   pooled over objects. There is no "which object" judgment.
 * **SDT correction:** the log-linear correction (Hautus, 1995),
@@ -168,7 +178,7 @@ automatically as the number of items grows. At the default size, SE(ĝ) ≈
 * N̂ = N in 100% of replicates in all 24 cells;
 * ĝ and ŝ fall within 3 SE in 96–100% of replicates (expected ≈ 99.7%; with
   50 replicates, one miss reads as 0.98);
-* the mean bias of ĝ is ≤ 0.002, and of ŝ ≤ 0.0001 s;
+* the mean bias of ĝ is ≤ 0.003, and of ŝ ≤ 0.0001 s;
 * all four dissociated responders recover their own (N, g, s) within the
   tolerances;
 * 7 of their 8 95% bootstrap CIs contain the true value. The exception is ŝ
@@ -198,8 +208,8 @@ construction directly:
 
 d′ and c assume an equal-variance Gaussian model, but the simulated responders
 follow a **high-threshold** rule. Under that rule, d′ moves when only the
-guess rate changes. With N = 2 fixed, mean d′ goes from 2.36 (g = 0.05) to
-1.69 (g = 0.2) to 1.30 (g = 0.4). Its replicate SD is about 0.04, while N̂ = 2
+guess rate changes. With N = 2 fixed, mean d′ goes from 2.35 (g = 0.05) to
+1.67 (g = 0.2) to 1.29 (g = 0.4). Its replicate SD is about 0.04, while N̂ = 2
 in 100% of those datasets (`test_dprime_shifts_with_g_alone`). Treat d′ and c as
 summaries for comparing conditions. Capacity and bias come from the (N, g) fit.
 The figure shows the same effect: the N = 4 responders' d′ drops at L4
@@ -207,7 +217,7 @@ because L4 is the only level with items where `n_changed` = 5 > N.
 
 ## Tests
 
-`pytest -q` runs 86 tests:
+`pytest -q` runs 118 tests:
 
 * **Generator:**
   - determinism;
@@ -215,6 +225,7 @@ because L4 is the only level with items where `n_changed` = 5 > N.
   - ground truth equals the panels;
   - the text alone encodes the ground truth;
   - surface noise and distractors never flip the ground truth;
+  - no two objects in a panel are identical, across all knob combinations;
   - each question lists exactly its queried attributes.
 * **Parser:** aliases, `none`, last line wins, unparseable cases.
 * **Scoring:** hand-computed SDT values, extreme cells, perfect and "report everything" responders, handling of unparseable responses and distractors.
@@ -224,16 +235,31 @@ because L4 is the only level with items where `n_changed` = 5 > N.
   - replicate recovery rates;
   - independence checks;
   - the d′-shifts-with-g caveat;
+  - the edge case g = 0 (no false alarms, ĝ = 0 exactly, finite likelihood, N recovered);
+  - bootstrap and OLS speed intervals agree at σ = 1.0;
+  - lapses break N recovery (the limitation below);
   - censoring of N when `n_changed` is small.
 * **Regression** (`tests/test_regression.py`): SHA-256 digests of fixed-seed item sets, the exact text of one prompt, and fixed-seed scores and fits, compared with `tests/golden/snapshot.json`. After an *intended* change, run `PYTHONPATH=src python scripts/update_golden.py` and explain the change in the commit message.
 
 ## Limitations
 
-* **No lapses in the threshold model.** The fit assumes a responder never
-  misses a change within capacity. A single such lapse in real data rules out
-  the true N for the whole dataset, so N would be underestimated. This model
-  is too brittle for real responders. The natural next step is a lapse
-  parameter (it is out of the current scope).
+* **The (N, g) fit cannot be used on real data until it has a lapse
+  parameter.** The fit assumes a responder never misses a change within
+  capacity. Any item with fewer hits than min(N, n_changed) gives that N a
+  likelihood of zero, so a single lapse rules out the true N for the whole
+  dataset. The effect is large even at tiny lapse rates (`results/validation.md`,
+  "Lapse sensitivity"; 12 grid cells × 20 datasets, 1,600 items):
+
+  | lapse rate | N̂ at 0 or 1 | N̂ = N for true N = 1 / 2 / 3 / 4 |
+  |---|---|---|
+  | 0 | 25% (N = 1 cells only) | 100% / 100% / 100% / 100% |
+  | 0.1% | 70% | 48% / 30% / 18% / 13% |
+  | 1% | 100% | 0% / 0% / 0% / 0% |
+
+  So a lapse rate of 0.1% already makes N̂ collapse, mostly to 0 or 1. The
+  simulated responders have an optional `lapse` setting to reproduce this.
+  The fit itself has no lapse term; adding one is the next step and is out
+  of the current scope.
 * **N is identifiable only up to the largest `n_changed` in the data** (5
   with all levels pooled; `ThresholdFit.n_censored` flags an estimate that
   sits at that ceiling). A single level with `n_attrs < 5` cannot identify
