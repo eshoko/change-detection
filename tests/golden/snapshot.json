@@ -1,0 +1,173 @@
+{
+ "first_prompt": "Each panel below describes groups of objects. An attribute counts as changed if, for at least one object group, its value differs between two consecutive panels. Objects may be listed in a different order, and the same value may be described with different but equivalent words; neither counts as a change.\n\nPanel 1: There are 2 small objects. There is 1 small object.\nPanel 2: There are 2 large objects. There are 3 small objects.\nPanel 3: There is 1 large object. There are 3 small objects.\n\nQuestion: Which of these attributes change across panels: size, count?\nEnd your answer with one line of the form 'CHANGED: <attributes separated by commas>' or 'CHANGED: none'.",
+ "item_digests": {
+  "1": "7d002ec9dc4be1371465c3756a8678f740a128f73c3dfec6c028b6c4546e22b2",
+  "2": "3ff90afb66bc1c60bf85b939c35c1c95b57701514bbf8e5c020a6a0d7b1e8853",
+  "3": "db3bc0494600c153ab9e64871364ff10a38d99bdc21051a6f8a6f24faaddfd61",
+  "4": "603251a84f38736f3f84030755541a00753842e6665896595a46fb3aac11d6e1"
+ },
+ "responders": {
+  "high-N/slow": {
+   "by_level": {
+    "1": {
+     "F": 0.11616161616161616,
+     "H": 0.9951456310679612,
+     "accuracy": 0.945,
+     "c": -0.6958191228594736,
+     "dprime": 3.780429572855259,
+     "exact_accuracy": 0.9,
+     "extraneous_reports": 0,
+     "fa_rate_raw": 0.11224489795918367,
+     "hit_rate_raw": 1.0,
+     "mean_rt": 2.5412042638185945,
+     "n_items": 100,
+     "n_noise": 98,
+     "n_signal": 102,
+     "sd_rt": 0.2730552542943312,
+     "unparseable_rate": 0.0
+    },
+    "2": {
+     "F": 0.2063953488372093,
+     "H": 0.9961538461538462,
+     "accuracy": 0.8833333333333333,
+     "c": -0.9231463074147875,
+     "dprime": 3.4842775972203794,
+     "exact_accuracy": 0.69,
+     "extraneous_reports": 0,
+     "fa_rate_raw": 0.2046783625730994,
+     "hit_rate_raw": 1.0,
+     "mean_rt": 4.57362914720841,
+     "n_items": 100,
+     "n_noise": 171,
+     "n_signal": 129,
+     "sd_rt": 0.2680021534431986,
+     "unparseable_rate": 0.0
+    },
+    "3": {
+     "F": 0.16666666666666666,
+     "H": 0.997716894977169,
+     "accuracy": 0.925,
+     "c": -0.9343603513666536,
+     "dprime": 3.803563834936709,
+     "exact_accuracy": 0.76,
+     "extraneous_reports": 0,
+     "fa_rate_raw": 0.16483516483516483,
+     "hit_rate_raw": 1.0,
+     "mean_rt": 7.423106509409268,
+     "n_items": 100,
+     "n_noise": 182,
+     "n_signal": 218,
+     "sd_rt": 0.31608798294122475,
+     "unparseable_rate": 0.0
+    },
+    "4": {
+     "F": 0.18541666666666667,
+     "H": 0.9293893129770993,
+     "accuracy": 0.876,
+     "c": -0.28817222213700183,
+     "dprime": 2.3661714301241594,
+     "exact_accuracy": 0.47,
+     "extraneous_reports": 0,
+     "fa_rate_raw": 0.18410041841004185,
+     "hit_rate_raw": 0.9310344827586207,
+     "mean_rt": 11.007623096119909,
+     "n_items": 100,
+     "n_noise": 239,
+     "n_signal": 261,
+     "sd_rt": 0.3288949603037379,
+     "unparseable_rate": 0.0
+    }
+   },
+   "fit": {
+    "N": 4,
+    "g": 0.17183098591549295,
+    "loglik": -231.0654141920953,
+    "s": 0.20165192813290686,
+    "se_g": 0.014157320218435677,
+    "se_s": 0.0009426030915147569,
+    "t0": 0.9417886945505632
+   }
+  },
+  "low-N/fast": {
+   "by_level": {
+    "1": {
+     "F": 0.15656565656565657,
+     "H": 0.7038834951456311,
+     "accuracy": 0.775,
+     "c": 0.23653521843091635,
+     "dprime": 1.5442762784317634,
+     "exact_accuracy": 0.56,
+     "extraneous_reports": 0,
+     "fa_rate_raw": 0.15306122448979592,
+     "hit_rate_raw": 0.7058823529411765,
+     "mean_rt": 1.341204263818594,
+     "n_items": 100,
+     "n_noise": 98,
+     "n_signal": 102,
+     "sd_rt": 0.27305525429433125,
+     "unparseable_rate": 0.0
+    },
+    "2": {
+     "F": 0.18895348837209303,
+     "H": 0.6192307692307693,
+     "accuracy": 0.73,
+     "c": 0.2891490904899646,
+     "dprime": 1.185220451212281,
+     "exact_accuracy": 0.39,
+     "extraneous_reports": 0,
+     "fa_rate_raw": 0.1871345029239766,
+     "hit_rate_raw": 0.6201550387596899,
+     "mean_rt": 1.8736291472084106,
+     "n_items": 100,
+     "n_noise": 171,
+     "n_signal": 129,
+     "sd_rt": 0.2680021534431986,
+     "unparseable_rate": 0.0
+    },
+    "3": {
+     "F": 0.1830601092896175,
+     "H": 0.4726027397260274,
+     "accuracy": 0.63,
+     "c": 0.4862467255423617,
+     "dprime": 0.8350358162508291,
+     "exact_accuracy": 0.19,
+     "extraneous_reports": 0,
+     "fa_rate_raw": 0.1813186813186813,
+     "hit_rate_raw": 0.4724770642201835,
+     "mean_rt": 2.6231065094092685,
+     "n_items": 100,
+     "n_noise": 182,
+     "n_signal": 218,
+     "sd_rt": 0.3160879829412248,
+     "unparseable_rate": 0.0
+    },
+    "4": {
+     "F": 0.18125,
+     "H": 0.43320610687022904,
+     "accuracy": 0.618,
+     "c": 0.5394145782477566,
+     "dprime": 0.742394257249427,
+     "exact_accuracy": 0.15,
+     "extraneous_reports": 0,
+     "fa_rate_raw": 0.1799163179916318,
+     "hit_rate_raw": 0.4329501915708812,
+     "mean_rt": 3.507623096119912,
+     "n_items": 100,
+     "n_noise": 239,
+     "n_signal": 261,
+     "sd_rt": 0.32889496030373805,
+     "unparseable_rate": 0.0
+    }
+   },
+   "fit": {
+    "N": 1,
+    "g": 0.17137648131267091,
+    "loglik": -362.8883808639081,
+    "s": 0.051651928132906935,
+    "se_g": 0.011377606905362093,
+    "se_s": 0.000942603091514757,
+    "t0": 0.9417886945505591
+   }
+  }
+ }
+}
