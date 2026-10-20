@@ -15,7 +15,7 @@ API calls (simulated responders only).
 
 ```bash
 pip install -r requirements.txt          # pinned versions, Python 3.13
-pytest -q                                # 118 tests, ~30 s
+pytest -q                                # 119 tests, ~30 s
 PYTHONPATH=src python scripts/run_validation.py   # ~5 min, writes results/validation.{json,md}
 PYTHONPATH=src python scripts/make_figure.py      # writes results/figure_dprime_rt.png
 ```
@@ -78,6 +78,12 @@ level, `n_changed` is uniform over `0..n_attrs`:
 | L4 | 5 | 5 | 3 | 2 | 50 |
 
 Use `generate_items(Knobs(...), n, seed)` to vary one knob at a time.
+
+**Caveat for single-knob sets:** every item made by one `generate_items` call
+has the same knobs, so it has the same load (`n_objects × n_attrs × (n_panels − 1)`).
+Speed s cannot be fitted from such a set, and `fit_speed` raises an error if
+you try. For these sets, report mean RT only, or pool several sets that vary a
+load-related knob (`n_objects`, `n_attrs` or `n_panels`) and fit s across them.
 
 ### Scoring (`changedet.scoring`)
 
@@ -183,7 +189,12 @@ automatically as the number of items grows. At the default size, SE(ĝ) ≈
   tolerances;
 * 7 of their 8 95% bootstrap CIs contain the true value. The exception is ŝ
   for low-N/slow, with CI 0.2002–0.2019 against a true value of 0.20. One miss
-  in eight is consistent with 95% coverage.
+  in eight is consistent with 95% coverage. This interval is the same as
+  before the distinct-object fix, and that is expected. RT depends only on
+  each item's load, which the level presets fix, and on its own random stream.
+  So ŝ and t̂0 are bit-for-bit the same as before. Only the bootstrap's σ
+  changed (fitted σ̂ = 0.304 instead of a fixed 0.3), which moves the lower
+  bound from 0.200174 to 0.200164.
 
 **How many items are needed?** For the hardest cell (N = 4, g = 0.4),
 N̂ = N in only 76–82% of datasets with 3–10 items per level, and in 100%
@@ -217,7 +228,7 @@ because L4 is the only level with items where `n_changed` = 5 > N.
 
 ## Tests
 
-`pytest -q` runs 118 tests:
+`pytest -q` runs 119 tests:
 
 * **Generator:**
   - determinism;

@@ -162,3 +162,14 @@ def test_speed_fit_rejects_constant_load(items):
     r = ThresholdResponder("x", N=1, g=0.2, s=FAST)
     with pytest.raises(ValueError, match="not identifiable"):
         fit_speed(build_trials(one_level, simulate(r, one_level, 0)))
+
+
+def test_single_knob_sets_cannot_fit_speed():
+    """generate_items fixes every knob, so load is constant and s is not identifiable."""
+    from changedet.generator import Knobs, generate_items
+    its = generate_items(Knobs(3, 3, 1, 1, 0), 60, seed=4)
+    t = build_trials(its, simulate(ThresholdResponder("x", N=2, g=0.2, s=SLOW), its, 0))
+    assert len({it.load for it in its}) == 1
+    with pytest.raises(ValueError, match="not identifiable"):
+        fit_speed(t)
+    assert summarize(t)["mean_rt"] > 0  # mean RT is still reportable
